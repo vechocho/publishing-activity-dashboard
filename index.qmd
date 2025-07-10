@@ -1,0 +1,145 @@
+---
+title: "SCAR Antarctic Biodiversity Portal Activity Dashboard"
+format: dashboard
+execute: 
+  echo: false
+---
+
+
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(plotly)
+library(here)
+library(viridis)
+source(here("R", "helpers.R"))
+
+# Load the data from the GBIF API
+url <- "https://api.gbif.org/v1/dataset/search/export?format=TSV&publishing_org=104e9c96-791b-4f14-978c-f581cb214912&publishing_org=af290483-8639-4b58-87fb-a4824c65e577&publishing_org=fb10a11f-4417-41c8-be6a-13a5c8535122&publishing_org=94458240-4e38-11db-985b-b8a03c50a862&publishing_org=4c882fee-876a-4b32-b218-67b2bdd42579"
+
+data <- read_tsv(url)
+
+# add created and modified date to each dataset
+datasets <- data %>%
+  mutate(api_data = map(dataset_key, get_created_modified)) %>%
+  unnest(api_data) %>%
+  mutate(
+    created_date = as_date(created),
+    created_year = year(created_date),
+    modified_date = as_date(modified),
+    modified_year = year(modified_date)
+  )
+
+# Prepare counts per created_year and type
+created_datasets_counts <- datasets %>%
+  group_by(created_year, type) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Prepare counts per modified_year and type
+modified_datasets_counts <- datasets %>%
+  group_by(modified_year, type) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Summarise occurrence records per created_year
+records_per_year <- datasets %>%
+  group_by(created_year) %>%
+  summarise(total_occurrence_records = sum(occurrence_records_count, na.rm = TRUE)) %>%
+  arrange(created_year)
+
+# Count datasets by license
+license_counts <- datasets %>%
+  count(license, name = "count")
+```
+
+Row
+-------------------------------------
+
+### Datasets published
+
+```{r}
+#| title: Number of Datasets Published per Year (Stacked by Type)
+
+# Get the needed number of colors
+n_colors <- length(unique(created_datasets_counts$type))
+cb_palette <- viridis(n_colors) 
+
+plot_ly(
+  created_datasets_counts,
+  x = ~created_year,
+  y = ~count,
+  color = ~type,
+  colors = cb_palette,
+  type = "bar"
+) %>%
+  layout(
+    barmode = "stack",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Datasets")
+  )
+```
+
+### Datasets updated
+
+```{r}
+#| title: Number of Datasets Updated per Year (Stacked by Type)
+
+# Get the needed number of colors
+n_colors <- length(unique(modified_datasets_counts$type))
+cb_palette <- viridis(n_colors) 
+
+plot_ly(
+  modified_datasets_counts,
+  x = ~modified_year,
+  y = ~count,
+  color = ~type,
+  colors = cb_palette,
+  type = "bar"
+) %>%
+  layout(
+    barmode = "stack",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Datasets")
+  )
+```
+
+
+Row
+-------------------------------------
+
+### License type
+
+```{r}
+#| title: Distribution of Dataset Licenses
+
+# Get the needed number of colors
+n_colors <- length(unique(license_counts$license))
+cb_palette <- viridis(n_colors) 
+
+# Create pie chart
+plot_ly(
+  license_counts,
+  labels = ~license,
+  values = ~count,
+  type = "pie",
+  hole = 0.4,
+  marker = list(colors = cb_palette)
+)
+```
+
+### Occurrences published
+
+```{r}
+#| title: Total Occurrence Records Published per Year
+
+plot_ly(
+  data = records_per_year,
+  x = ~created_year,
+  y = ~total_occurrence_records,
+  type = 'bar',
+  marker = list(color = "#21908CFF")
+) %>%
+  layout(
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Total Occurrence Records (log)", type = "log")
+  )
+```
