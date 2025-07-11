@@ -13,12 +13,16 @@ library(tidyverse)
 library(plotly)
 library(here)
 library(viridis)
+library(httr)
+library(jsonlite)
 source(here("R", "helpers.R"))
 
-# Load the data from the GBIF API
-url <- "https://api.gbif.org/v1/dataset/search/export?format=TSV&publishing_org=104e9c96-791b-4f14-978c-f581cb214912&publishing_org=af290483-8639-4b58-87fb-a4824c65e577&publishing_org=fb10a11f-4417-41c8-be6a-13a5c8535122&publishing_org=94458240-4e38-11db-985b-b8a03c50a862&publishing_org=4c882fee-876a-4b32-b218-67b2bdd42579"
+### DATASETS
 
-data <- read_tsv(url)
+# Load the data from the GBIF API
+datasets <- "https://api.gbif.org/v1/dataset/search/export?format=TSV&publishing_org=104e9c96-791b-4f14-978c-f581cb214912&publishing_org=af290483-8639-4b58-87fb-a4824c65e577&publishing_org=fb10a11f-4417-41c8-be6a-13a5c8535122&publishing_org=94458240-4e38-11db-985b-b8a03c50a862&publishing_org=4c882fee-876a-4b32-b218-67b2bdd42579"
+
+data <- read_tsv(datasets)
 
 # add created and modified date to each dataset
 datasets <- data %>%
@@ -58,54 +62,28 @@ records_per_year <- datasets %>%
 # Count datasets by license
 license_counts <- datasets %>%
   count(license, name = "count")
-```
 
-Row
--------------------------------------
+### CITATIONS 
 
-### Datasets published
+citation_url <- "https://api.gbif.org/v1/literature/search?publishingOrganizationKey=104e9c96-791b-4f14-978c-f581cb214912&publishingOrganizationKey=af290483-8639-4b58-87fb-a4824c65e577&publishingOrganizationKey=fb10a11f-4417-41c8-be6a-13a5c8535122&publishingOrganizationKey=94458240-4e38-11db-985b-b8a03c50a862&publishingOrganizationKey=4c882fee-876a-4b32-b218-67b2bdd42579&facet=year"
 
-```{r}
-#| title: Number of Datasets Published per Year (Stacked by Type)
+# Fetch and parse
+response <- GET(citation_url)
+stop_for_status(response)
+citation_json_data <- content(response, "text", encoding = "UTF-8") %>% fromJSON(flatten = TRUE)
 
-# Get the needed number of colors
-n_colors <- length(unique(created_datasets_counts$type))
-cb_palette <- viridis(n_colors) 
-
-fig <- plot_ly() %>%
-  
-  # stacked bars
-  add_bars(
-    data = created_datasets_counts,
-    x = ~created_year,
-    y = ~count,
-    color = ~type,
-    colors = cb_palette,
-    name = ~type
+# Extract year + count from facets
+citation_per_year <- citation_json_data$facets$counts[[1]] %>%
+  as_tibble() %>%
+  rename(year = name) %>%
+  mutate(
+    year = as.integer(year),
+    count = as.integer(count)
   ) %>%
-  
-  # cumulative line
-  add_lines(
-    data = cumulative_created_datasets,
-    x = ~created_year,
-    y = ~cumulative_total,
-    name = "Cumulative Total",
-    yaxis = "y2",
-    line = list(color = "#F8760DFF", width = 2)
-  ) %>%
-  
-  layout(
-    barmode = "stack",
-    xaxis = list(title = "Year"),
-    yaxis = list(title = "Number of Datasets"),
-    yaxis2 = list(
-      overlaying = "y",
-      side = "right",
-      title = "Cumulative Total"
-    )
-  )
+  arrange(year) %>%  # ensure ascending order for correct cumulative sum
+  mutate(cumulative_count = cumsum(count)) 
 
-fig
+
 ```
 
 Row
@@ -114,7 +92,7 @@ Row
 ### Occurrences published
 
 ```{r}
-#| title: Total Occurrence Records Published per Year
+#| title: Number of Occurrence Records Published per Year
 
 # Use bright orange for the cumulative curve
 cumulative_color <- "#F8760D"
@@ -155,7 +133,7 @@ fig <- plot_ly() %>%
       title = list(text = "Cumulative Total Records (log)"),
       rangemode = "nonnegative"
     ),
-    margin = list(r = 80),
+    
     legend = list(x = 0.05, y = 0.95)
   )
 
@@ -165,6 +143,53 @@ fig
 
 Row
 -------------------------------------
+
+### Datasets published
+
+```{r}
+#| title: Number of Datasets Published per Year
+
+# Get the needed number of colors
+n_colors <- length(unique(created_datasets_counts$type))
+cb_palette <- viridis(n_colors) 
+
+fig <- plot_ly() %>%
+  
+  # stacked bars
+  add_bars(
+    data = created_datasets_counts,
+    x = ~created_year,
+    y = ~count,
+    color = ~type,
+    colors = cb_palette,
+    name = ~type
+  ) %>%
+  
+  # cumulative line
+  add_lines(
+    data = cumulative_created_datasets,
+    x = ~created_year,
+    y = ~cumulative_total,
+    name = "Cumulative Total",
+    yaxis = "y2",
+    line = list(color = "#F8760DFF", width = 2)
+  ) %>%
+  
+  layout(
+    barmode = "stack",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Datasets"),
+    yaxis2 = list(
+      overlaying = "y",
+      side = "right",
+      title = "Cumulative Total"
+    ),
+    margin = list(r = 80),
+    legend = list(x = 0.05, y = 1)
+  )
+
+fig
+```
 
 
 ### Datasets updated
@@ -187,10 +212,14 @@ plot_ly(
   layout(
     barmode = "stack",
     xaxis = list(title = "Year"),
-    yaxis = list(title = "Number of Datasets")
+    yaxis = list(title = "Number of Datasets"),
+    margin = list(r = 80),
+    legend = list(x = 0.05, y = 1)
   )
 ```
 
+Row
+-------------------------------------
 
 ### License type
 
@@ -212,4 +241,52 @@ plot_ly(
 )
 ```
 
+### Dataset Citation per Year
+
+```{r}
+#| title: Citations of Our Published Datasets (GBIF) per Year
+
+# Use bright orange for the cumulative curve
+cumulative_color <- "#F8760D"
+
+fig <- plot_ly() %>%
+  
+  # Bar chart: Total Occurrence Records Published per Year
+  add_bars(
+    data = citation_per_year,
+    x = ~year,
+    y = ~count,
+    name = "Citation Count per year",
+    marker = list(color = "#21908CFF")
+  ) %>%
+  
+  # Overlay cumulative curve
+  add_lines(
+    data = citation_per_year,
+    x = ~year,
+    y = ~cumulative_count,
+    name = "Cumulative Citation Count",
+    yaxis = "y2",
+    line = list(color = cumulative_color, width = 2)
+  ) %>%
+  
+  # Layout for log scale
+  layout(
+    xaxis = list(title = "Year"),
+    yaxis = list(
+      title = "Citation Count per year",
+      rangemode = "nonnegative"
+    ),
+    yaxis2 = list(
+      overlaying = "y",
+      side = "right",
+      title = list(text = "Cumulative Citation Count"),
+      rangemode = "nonnegative"
+    ),
+    margin = list(r = 80),
+    legend = list(x = 0.05, y = 0.95)
+  )
+
+fig
+```
 
