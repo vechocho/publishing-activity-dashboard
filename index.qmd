@@ -1,10 +1,11 @@
 ---
 title: "SCAR Antarctic Biodiversity Portal Activity Dashboard"
-format: dashboard
+format: 
+  dashboard:
+    scrolling: true 
 execute: 
   echo: false
 ---
-
 
 
 ```{r setup, include = FALSE}
@@ -35,6 +36,13 @@ created_datasets_counts <- datasets %>%
   group_by(created_year, type) %>%
   summarise(count = n(), .groups = "drop")
 
+# Calculate cumulative dataset counts per created_year
+cumulative_created_datasets <- created_datasets_counts %>%
+  group_by(created_year) %>%
+  summarise(yearly_total = sum(count)) %>%
+  arrange(created_year) %>%
+  mutate(cumulative_total = cumsum(yearly_total))
+
 # Prepare counts per modified_year and type
 modified_datasets_counts <- datasets %>%
   group_by(modified_year, type) %>%
@@ -44,7 +52,8 @@ modified_datasets_counts <- datasets %>%
 records_per_year <- datasets %>%
   group_by(created_year) %>%
   summarise(total_occurrence_records = sum(occurrence_records_count, na.rm = TRUE)) %>%
-  arrange(created_year)
+  arrange(created_year) %>%
+  mutate(cumulative_occ = cumsum(total_occurrence_records))
 
 # Count datasets by license
 license_counts <- datasets %>%
@@ -63,20 +72,100 @@ Row
 n_colors <- length(unique(created_datasets_counts$type))
 cb_palette <- viridis(n_colors) 
 
-plot_ly(
-  created_datasets_counts,
-  x = ~created_year,
-  y = ~count,
-  color = ~type,
-  colors = cb_palette,
-  type = "bar"
-) %>%
+fig <- plot_ly() %>%
+  
+  # stacked bars
+  add_bars(
+    data = created_datasets_counts,
+    x = ~created_year,
+    y = ~count,
+    color = ~type,
+    colors = cb_palette,
+    name = ~type
+  ) %>%
+  
+  # cumulative line
+  add_lines(
+    data = cumulative_created_datasets,
+    x = ~created_year,
+    y = ~cumulative_total,
+    name = "Cumulative Total",
+    yaxis = "y2",
+    line = list(color = "#F8760DFF", width = 2)
+  ) %>%
+  
   layout(
     barmode = "stack",
     xaxis = list(title = "Year"),
-    yaxis = list(title = "Number of Datasets")
+    yaxis = list(title = "Number of Datasets"),
+    yaxis2 = list(
+      overlaying = "y",
+      side = "right",
+      title = "Cumulative Total"
+    )
   )
+
+fig
 ```
+
+Row
+-------------------------------------
+
+### Occurrences published
+
+```{r}
+#| title: Total Occurrence Records Published per Year
+
+# Use bright orange for the cumulative curve
+cumulative_color <- "#F8760D"
+
+fig <- plot_ly() %>%
+  
+  # Bar chart: Total Occurrence Records Published per Year
+  add_bars(
+    data = records_per_year,
+    x = ~created_year,
+    y = ~total_occurrence_records,
+    name = "Records published per year",
+    marker = list(color = "#21908CFF")
+  ) %>%
+  
+  # Overlay cumulative curve
+  add_lines(
+    data = records_per_year,
+    x = ~created_year,
+    y = ~cumulative_occ,
+    name = "Cumulative Total",
+    yaxis = "y2",
+    line = list(color = cumulative_color, width = 2)
+  ) %>%
+  
+  # Layout for log scale
+  layout(
+    xaxis = list(title = "Year"),
+    yaxis = list(
+      title = "Records Published per Year (log)",
+      type = "log",
+      rangemode = "nonnegative"
+    ),
+    yaxis2 = list(
+      overlaying = "y",
+      side = "right",
+      type = "log",
+      title = list(text = "Cumulative Total Records (log)"),
+      rangemode = "nonnegative"
+    ),
+    margin = list(r = 80),
+    legend = list(x = 0.05, y = 0.95)
+  )
+
+fig
+```
+
+
+Row
+-------------------------------------
+
 
 ### Datasets updated
 
@@ -103,9 +192,6 @@ plot_ly(
 ```
 
 
-Row
--------------------------------------
-
 ### License type
 
 ```{r}
@@ -126,20 +212,4 @@ plot_ly(
 )
 ```
 
-### Occurrences published
 
-```{r}
-#| title: Total Occurrence Records Published per Year
-
-plot_ly(
-  data = records_per_year,
-  x = ~created_year,
-  y = ~total_occurrence_records,
-  type = 'bar',
-  marker = list(color = "#21908CFF")
-) %>%
-  layout(
-    xaxis = list(title = "Year"),
-    yaxis = list(title = "Total Occurrence Records (log)", type = "log")
-  )
-```
