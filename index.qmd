@@ -133,7 +133,7 @@ fig <- plot_ly() %>%
       title = list(text = "Cumulative Total Records (log)"),
       rangemode = "nonnegative"
     ),
-    
+    margin = list(r = 80),
     legend = list(x = 0.05, y = 0.95)
   )
 
@@ -185,7 +185,7 @@ fig <- plot_ly() %>%
       title = "Cumulative Total"
     ),
     margin = list(r = 80),
-    legend = list(x = 0.05, y = 1)
+    legend = list(x = 0.02, y = 1)
   )
 
 fig
@@ -213,8 +213,7 @@ plot_ly(
     barmode = "stack",
     xaxis = list(title = "Year"),
     yaxis = list(title = "Number of Datasets"),
-    margin = list(r = 80),
-    legend = list(x = 0.05, y = 1)
+    legend = list(x = 0.02, y = 1)
   )
 ```
 
