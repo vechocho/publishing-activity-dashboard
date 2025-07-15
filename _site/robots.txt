@@ -1,0 +1,1 @@
+Sitemap: https://biodiversity-aq.github.io/publishing-activity-dashboard/sitemap.xml

@@ -7,7 +7,6 @@ execute:
   echo: false
 ---
 
-
 ```{r setup, include = FALSE}
 library(tidyverse)
 library(plotly)
@@ -86,8 +85,7 @@ citation_per_year <- citation_json_data$facets$counts[[1]] %>%
 
 ```
 
-Row
--------------------------------------
+## Row
 
 ### Occurrences published
 
@@ -140,9 +138,7 @@ fig <- plot_ly() %>%
 fig
 ```
 
-
-Row
--------------------------------------
+## Row
 
 ### Datasets published
 
@@ -189,55 +185,6 @@ fig <- plot_ly() %>%
   )
 
 fig
-```
-
-
-### Datasets updated
-
-```{r}
-#| title: Number of Datasets Updated per Year (Stacked by Type)
-
-# Get the needed number of colors
-n_colors <- length(unique(modified_datasets_counts$type))
-cb_palette <- viridis(n_colors) 
-
-plot_ly(
-  modified_datasets_counts,
-  x = ~modified_year,
-  y = ~count,
-  color = ~type,
-  colors = cb_palette,
-  type = "bar"
-) %>%
-  layout(
-    barmode = "stack",
-    xaxis = list(title = "Year"),
-    yaxis = list(title = "Number of Datasets"),
-    legend = list(x = 0.02, y = 1)
-  )
-```
-
-Row
--------------------------------------
-
-### License type
-
-```{r}
-#| title: Distribution of Dataset Licenses
-
-# Get the needed number of colors
-n_colors <- length(unique(license_counts$license))
-cb_palette <- viridis(n_colors) 
-
-# Create pie chart
-plot_ly(
-  license_counts,
-  labels = ~license,
-  values = ~count,
-  type = "pie",
-  hole = 0.4,
-  marker = list(colors = cb_palette)
-)
 ```
 
 ### Dataset Citation per Year
@@ -289,3 +236,49 @@ fig <- plot_ly() %>%
 fig
 ```
 
+## Row
+
+### License type
+
+```{r}
+#| title: Distribution of Dataset Licenses
+
+# Get the needed number of colors
+n_colors <- length(unique(license_counts$license))
+cb_palette <- viridis(n_colors) 
+
+# Create pie chart
+plot_ly(
+  license_counts,
+  labels = ~license,
+  values = ~count,
+  type = "pie",
+  hole = 0.4,
+  marker = list(colors = cb_palette)
+)
+```
+
+### Datasets updated
+
+```{r}
+#| title: Number of Datasets Updated per Year (Stacked by Type)
+
+# Get the needed number of colors
+n_colors <- length(unique(modified_datasets_counts$type))
+cb_palette <- viridis(n_colors) 
+
+plot_ly(
+  modified_datasets_counts,
+  x = ~modified_year,
+  y = ~count,
+  color = ~type,
+  colors = cb_palette,
+  type = "bar"
+) %>%
+  layout(
+    barmode = "stack",
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Number of Datasets"),
+    legend = list(x = 0.02, y = 1)
+  )
+```
