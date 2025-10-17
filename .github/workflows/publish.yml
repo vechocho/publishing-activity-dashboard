@@ -1,0 +1,50 @@
+# Este workflow publica el sitio de Quarto en GitHub Pages
+name: Publish Quarto Website
+
+# Se activa cada vez que haces un 'push' a la rama 'main'
+on:
+  push:
+    branches: [main]
+  # También permite ejecutarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
+
+# Permisos necesarios
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'latest' # Usa la última versión de R
+
+      - name: Install R Packages (from DESCRIPTION file)
+        run: |
+          install.packages('remotes')
+          remotes::install_deps()
+        shell: Rscript {0}
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render Quarto Website
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          to: html
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
