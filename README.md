@@ -32,4 +32,3 @@ View the dashboard in your browser.
 
 For questions or contributions, please open a GitHub issue or contact the SCAR Antarctic Biodiversity Portal team.
 
-ty ym
