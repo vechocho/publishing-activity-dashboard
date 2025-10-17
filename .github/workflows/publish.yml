@@ -35,6 +35,7 @@ jobs:
         run: |
           install.packages("renv")
           renv::restore(prompt = FALSE)
+          install.packages("rgbif")
         shell: Rscript {0}
 
       - name: Set up Quarto
