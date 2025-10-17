@@ -26,10 +26,10 @@ jobs:
         with:
           r-version: 'latest' # Usa la última versión de R
 
-      - name: Install R Packages (from DESCRIPTION file)
+      - name: Restore R packages from renv.lock
         run: |
-          install.packages('remotes')
-          remotes::install_deps()
+          install.packages("renv")
+          renv::restore()
         shell: Rscript {0}
 
       - name: Set up Quarto
