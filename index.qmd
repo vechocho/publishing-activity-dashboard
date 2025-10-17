@@ -1,5 +1,5 @@
 ---
-title: "SCAR Antarctic Biodiversity Portal Activity Dashboard"
+title: "Actividad de Publicación de Ecuador"
 format: 
   dashboard:
     scrolling: true 
@@ -14,14 +14,38 @@ library(here)
 library(viridis)
 library(httr)
 library(jsonlite)
+library(rgbif) # <-- AÑADIR ESTA LÍNEA
 source(here("R", "helpers.R"))
 
 ### DATASETS
 
 # Load the data from the GBIF API
-datasets <- "https://api.gbif.org/v1/dataset/search/export?format=TSV&publishing_org=104e9c96-791b-4f14-978c-f581cb214912&publishing_org=af290483-8639-4b58-87fb-a4824c65e577&publishing_org=fb10a11f-4417-41c8-be6a-13a5c8535122&publishing_org=94458240-4e38-11db-985b-b8a03c50a862&publishing_org=4c882fee-876a-4b32-b218-67b2bdd42579"
+#datasets <- "https://api.gbif.org/v1/dataset/search/export?format=TSV&publishing_org=104e9c96-791b-4f14-978c-f581cb214912&publishing_org=af290483-8639-4b58-87fb-a4824c65e577&publishing_org=fb10a11f-4417-41c8-be6a-13a5c8535122&publishing_org=94458240-4e38-11db-985b-b8a03c50a862&publishing_org=4c882fee-876a-4b32-b218-67b2bdd42579"
 
-data <- read_tsv(datasets)
+#data <- read_tsv(datasets)
+
+# 1. Find all dataset keys with occurrences in Ecuador
+ecuador_dataset_keys <- occ_search(
+  country = "EC",
+  limit = 0,
+  facet = "datasetKey",
+  facetLimit = 10000 # Max number of datasets to retrieve
+)$facets$datasetKey$name
+
+# 2. Get metadata for each dataset key. This can take a moment.
+data <- ecuador_dataset_keys %>%
+  map_dfr(~{
+    # dataset_get retrieves detailed metadata for one dataset
+    meta <- rgbif::dataset_get(.x)
+    # Create a one-row table (tibble) with the info we need
+    tibble(
+      dataset_key = meta$data$key,
+      type = meta$data$type,
+      license = meta$data$license,
+      occurrence_records_count = meta$data$occurrenceCount %||% 0
+    )
+  })
+
 
 # add created and modified date to each dataset
 datasets <- data %>%
@@ -64,7 +88,9 @@ license_counts <- datasets %>%
 
 ### CITATIONS 
 
-citation_url <- "https://api.gbif.org/v1/literature/search?publishingOrganizationKey=104e9c96-791b-4f14-978c-f581cb214912&publishingOrganizationKey=af290483-8639-4b58-87fb-a4824c65e577&publishingOrganizationKey=fb10a11f-4417-41c8-be6a-13a5c8535122&publishingOrganizationKey=94458240-4e38-11db-985b-b8a03c50a862&publishingOrganizationKey=4c882fee-876a-4b32-b218-67b2bdd42579&facet=year"
+# citation_url <- "https://api.gbif.org/v1/literature/search?publishingOrganizationKey=104e9c96-791b-4f14-978c-f581cb214912&publishingOrganizationKey=af290483-8639-4b58-87fb-a4824c65e577&publishingOrganizationKey=fb10a11f-4417-41c8-be6a-13a5c8535122&publishingOrganizationKey=94458240-4e38-11db-985b-b8a03c50a862&publishingOrganizationKey=4c882fee-876a-4b32-b218-67b2bdd42579&facet=year"
+
+citation_url <- "https://api.gbif.org/v1/literature/search?q=Ecuador&relevance=GBIF_USED&facet=year"
 
 # Fetch and parse
 response <- GET(citation_url)
