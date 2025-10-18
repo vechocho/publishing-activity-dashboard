@@ -14,7 +14,7 @@ library(here)
 library(viridis)
 library(httr)
 library(jsonlite)
-library(rgbif) # <-- AÑADIR ESTA LÍNEA
+library(rgbif) # <-- Añadido
 source(here("R", "helpers.R"))
 
 ### DATASETS
@@ -35,11 +35,12 @@ data <- ecuador_dataset_keys %>%
       dataset_key = meta$data$key,
       type = meta$data$type,
       license = meta$data$license,
-      occurrence_records_count = meta$data$occurrenceCount %||% 0
+      # ESTA LÍNEA ESTÁ CORREGIDA (NO TIENE EL TYPO "meta::data")
+      occurrence_records_count = meta$data$occurrenceCount %||% 0 
     )
   })
 
-# 3. Use the helper function to add created/modified dates (ESTA ES LA CORRECCIÓN CLAVE)
+# 3. Use the helper function to add created/modified dates (ESTO ARREGLA EL ERROR 'created' not found)
 datasets <- data %>%
   mutate(api_data = map(dataset_key, get_created_modified)) %>%
   unnest(api_data) %>%
@@ -80,8 +81,7 @@ license_counts <- datasets %>%
 
 ### CITATIONS 
 
-# citation_url <- "https://api.gbif.org/v1/literature/search?publishingOrganizationKey=104e9c96-791b-4f14-978c-f581cb214912&publishingOrganizationKey=af290483-8639-4b58-87fb-a4824c65e577&publishingOrganizationKey=fb10a11f-4417-41c8-be6a-13a5c8535122&publishingOrganizationKey=94458240-4e38-11db-985b-b8a03c50a862&publishingOrganizationKey=4c882fee-876a-4b32-b218-67b2bdd42579&facet=year"
-
+# ESTA URL ESTÁ CAMBIADA A ECUADOR
 citation_url <- "https://api.gbif.org/v1/literature/search?q=Ecuador&relevance=GBIF_USED&facet=year"
 
 # Fetch and parse
@@ -97,9 +97,8 @@ citation_per_year <- citation_json_data$facets$counts[[1]] %>%
     year = as.integer(year),
     count = as.integer(count)
   ) %>%
-  arrange(year) %>%  # ensure ascending order for correct cumulative sum
-  mutate(cumulative_count = cumsum(count)) 
-
+  arrange(year) %>% # ensure ascending order for correct cumulative sum
+  mutate(cumulative_count = cumsum(count))
 
 ```
 
