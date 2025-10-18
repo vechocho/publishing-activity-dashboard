@@ -24,25 +24,25 @@ ecuador_dataset_keys <- occ_search(
   country = "EC",
   limit = 0,
   facet = "datasetKey",
-  facetLimit = 10000 # Max number of datasets to retrieve
+  facetLimit = 10000
 )$facets$datasetKey$name
 
-# 2. Get metadata for each key and process it into the final 'datasets' table
-datasets <- ecuador_dataset_keys %>%
+# 2. Get metadata for each dataset key
+data <- ecuador_dataset_keys %>%
   map_dfr(~{
-    # dataset_get retrieves detailed metadata for one dataset
     meta <- rgbif::dataset_get(.x)
-    # Create a one-row table (tibble) with the info we need
     tibble(
       dataset_key = meta$data$key,
       type = meta$data$type,
       license = meta$data$license,
-      occurrence_records_count = meta$data$occurrenceCount %||% 0,
-      created = meta$data$created,  # We get 'created' date here
-      modified = meta$data$modified # We get 'modified' date here
+      occurrence_records_count = meta$data$occurrenceCount %||% 0
     )
-  }) %>%
-  # 3. Process the dates
+  })
+
+# 3. Use the helper function to add created/modified dates (ESTA ES LA CORRECCIÓN CLAVE)
+datasets <- data %>%
+  mutate(api_data = map(dataset_key, get_created_modified)) %>%
+  unnest(api_data) %>%
   mutate(
     created_date = as_date(created),
     created_year = year(created_date),
