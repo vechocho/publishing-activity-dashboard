@@ -19,11 +19,6 @@ source(here("R", "helpers.R"))
 
 ### DATASETS
 
-# Load the data from the GBIF API
-#datasets <- "https://api.gbif.org/v1/dataset/search/export?format=TSV&publishing_org=104e9c96-791b-4f14-978c-f581cb214912&publishing_org=af290483-8639-4b58-87fb-a4824c65e577&publishing_org=fb10a11f-4417-41c8-be6a-13a5c8535122&publishing_org=94458240-4e38-11db-985b-b8a03c50a862&publishing_org=4c882fee-876a-4b32-b218-67b2bdd42579"
-
-#data <- read_tsv(datasets)
-
 # 1. Find all dataset keys with occurrences in Ecuador
 ecuador_dataset_keys <- occ_search(
   country = "EC",
@@ -32,8 +27,8 @@ ecuador_dataset_keys <- occ_search(
   facetLimit = 10000 # Max number of datasets to retrieve
 )$facets$datasetKey$name
 
-# 2. Get metadata for each dataset key. This can take a moment.
-data <- ecuador_dataset_keys %>%
+# 2. Get metadata for each key and process it into the final 'datasets' table
+datasets <- ecuador_dataset_keys %>%
   map_dfr(~{
     # dataset_get retrieves detailed metadata for one dataset
     meta <- rgbif::dataset_get(.x)
@@ -42,15 +37,12 @@ data <- ecuador_dataset_keys %>%
       dataset_key = meta$data$key,
       type = meta$data$type,
       license = meta$data$license,
-      occurrence_records_count = meta$data$occurrenceCount %||% 0
+      occurrence_records_count = meta$data$occurrenceCount %||% 0,
+      created = meta$data$created,  # We get 'created' date here
+      modified = meta$data$modified # We get 'modified' date here
     )
-  })
-
-
-# add created and modified date to each dataset
-datasets <- data %>%
-  mutate(api_data = map(dataset_key, get_created_modified)) %>%
-  unnest(api_data) %>%
+  }) %>%
+  # 3. Process the dates
   mutate(
     created_date = as_date(created),
     created_year = year(created_date),
